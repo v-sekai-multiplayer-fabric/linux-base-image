@@ -52,6 +52,10 @@ jobs:
       - name: Hash output
         working-directory: output
         run: |
+          # packer ran under sudo, so the qcow2 is root-owned. Chown
+          # back to the runner so the subsequent sha512sum + upload
+          # steps can write here without sudo.
+          sudo chown -R "$USER:$USER" .
           sha512sum linux-base-image.qcow2 > linux-base-image.qcow2.sha512
           ls -lh
 
