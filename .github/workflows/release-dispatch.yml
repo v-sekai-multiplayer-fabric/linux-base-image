@@ -1,0 +1,40 @@
+name: release-dispatch
+
+# When a new linux-base-image release is published, kick the child image
+# repos so they re-bake against the latest parent qcow2. Each child's
+# build.yml accepts a `parent_version` workflow_dispatch input that
+# overrides the source_image_url default.
+#
+# Requires a repo secret `ORG_DISPATCH_PAT`: a fine-grained Personal
+# Access Token (or GitHub App installation token) with `actions: write`
+# on the v-sekai-multiplayer-fabric/{restic-backup-image,
+# cockroach-crdb-image, zone-backend-image, zone-baker-image,
+# zone-server-image, sccache-cache-image} repos.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        child:
+          - restic-backup-image
+          - cockroach-crdb-image
+          - zone-backend-image
+          - zone-baker-image
+          - zone-server-image
+          - sccache-cache-image
+    steps:
+      - name: Dispatch build on ${{ matrix.child }}
+        env:
+          GH_TOKEN: ${{ secrets.ORG_DISPATCH_PAT }}
+          PARENT_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          gh workflow run build.yml \
+            --repo v-sekai-multiplayer-fabric/${{ matrix.child }} \
+            -f parent_version="$PARENT_VERSION"
